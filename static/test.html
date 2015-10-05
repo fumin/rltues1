@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QUnit basic example</title>
+  <link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.19.0.css">
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+  <script src="//code.jquery.com/qunit/qunit-1.19.0.js"></script>
+
+  <script type="text/javascript">
+QUnit.module("ttt");
+
+QUnit.test("game", function(assert){
+  var done = assert.async();
+  var winners = [null, null];
+  var check = function() {
+    var allDone = (winners[0] && winners[1]);
+    if (!allDone) {
+      return;
+    }
+
+    var circleWins = (winners[0] == "CIRCLE" && winners[1] == "CIRCLE");
+    assert.ok(circleWins);
+    done();
+  };
+
+  var room = Date.now();
+  var startPlayer2 = function() {
+    var player2 = new EventSource("/TTT?player=cross&room="+encodeURIComponent(room));
+    player2.addEventListener("error", function(e){
+      console.log(e);
+    });
+    var token2;
+    player2.addEventListener("token", function(e){
+      token2 = e.data;
+    });
+    var move2 = 0;
+    player2.addEventListener("b", function(e){
+      var url = "/TTTMove?token="+encodeURIComponent(token2)+"&player=cross&room="+encodeURIComponent(room);
+      if (move2 == 0) {
+        url += "&position=1";
+        move2 += 1;
+      } else if (move2 == 1) {
+        url += "&position=7";
+        move2 += 1;
+      } else {
+        return;
+      }
+
+      var req = new XMLHttpRequest();
+      req.addEventListener("load", function(e){
+        console.log(e);
+      });
+      req.addEventListener("error", function(e){
+        console.log(e);
+      });
+      req.open("POST", url);
+      req.send();
+    });
+    player2.addEventListener("w", function(e){
+      e.target.close();
+      winners[1] = e.data;
+      check();
+    });
+  };
+
+  var player1 = new EventSource("/TTT?room="+encodeURIComponent(room));
+  player1.addEventListener("error", function(e){
+    console.log(e);
+  });
+  var token1;
+  player1.addEventListener("token", function(e){
+    token1 = e.data;
+  });
+  var move1 = 0;
+  player1.addEventListener("b", function(e){
+    var url = "/TTTMove?token="+encodeURIComponent(token1)+"&room="+encodeURIComponent(room);
+    if (move1 == 0) {
+      url += "&position=4";
+      move1 += 1;
+    } else if (move1 == 1) {
+      url += "&position=0";
+      move1 += 1;
+    } else if (move1 == 2) {
+      url += "&position=8";
+      move1 += 1;
+    } else {
+      return;
+    }
+
+    var req = new XMLHttpRequest();
+    req.addEventListener("load", function(e){
+      console.log(e);
+
+      if (move1 == 1) {
+        startPlayer2();
+      }
+    });
+    req.addEventListener("error", function(e){
+      console.log(e);
+    });
+    req.open("POST", url);
+    req.send();
+  });
+  player1.addEventListener("w", function(e){
+    e.target.close();
+    winners[0] = e.data;
+    check();
+  });
+  
+});
+  </script>
+</body>
+</html>
